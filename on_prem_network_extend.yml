@@ -1,0 +1,141 @@
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: "prefixed name for all resources"
+    Default: "EsExtendOnPrem"
+  VpcCIDR:
+    Type: String
+    Description: "IP range for our network"
+    Default: "10.0.0.0/16"
+  PrivateSubnet1CIDR:
+    Type: String
+    Description: "IP range for our private subnet in AZ1"
+    Default: "10.0.2.0/24"
+  PrivateSubnet2CIDR:
+    Type: String
+    Description: "IP range for our private subnet in AZ2"
+    Default: "10.0.3.0/24"
+  OnPremCGWIp:
+    Type: String
+    Description: "IP for on prem VPN Appliance"
+    Default: "1.2.3.4"
+Resources:
+  EsVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsHostnames: true
+      Tags:
+        - Key: "Name"
+          Value: !Sub ${EnvironmentName}-VPC
+  PrivateSubnet1: 
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: "Name"
+          Value: !Sub ${EnvironmentName}-Private-Subnet1
+      VpcId: !Ref EsVPC
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Ref PrivateSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: "Name"
+          Value: !Sub ${EnvironmentName}-Private-Subnet2
+      VpcId: !Ref EsVPC
+  PrivateRouteTable1: 
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: !Sub ${EnvironmentName}-Private-Route-Table1
+      VpcId: !Ref EsVPC
+  PrivateRoute1:
+    DependsOn: VPNAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref VpcVGW
+      RouteTableId: !Ref PrivateRouteTable1
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet1
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: !Sub ${EnvironmentName}-Private-Route-Table2
+      VpcId: !Ref EsVPC
+  PrivateRoute2:
+    DependsOn: VPNAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref VpcVGW
+      RouteTableId: !Ref PrivateRouteTable2
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref PrivateSubnet2
+  VpcVGW:
+    Type: AWS::EC2::VPNGateway
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: !Sub ${EnvironmentName}-VPNGateway
+      Type: ipsec.1
+  VPNAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref EsVPC
+      VpnGatewayId: !Ref VpcVGW
+  OnPremCGW:
+    Type: AWS::EC2::CustomerGateway
+    Properties:
+      BgpAsn: 65000
+      IpAddress: !Ref OnPremCGWIp
+      Tags:
+        - Key: "Name"
+          Value: !Sub ${EnvironmentName}-OnPremCGW
+      Type: ipsec.1
+  VPNConnection:
+    Type: AWS::EC2::VPNConnection
+    Properties:
+      CustomerGatewayId: !Ref OnPremCGW
+      StaticRoutesOnly: true
+      Tags:
+        - Key: "Name"
+          Value: !Sub ${EnvironmentName}-VPN-Connection
+      Type: ipsec.1
+      VpnGatewayId: !Ref VpcVGW
+Outputs:
+  EsVPC:
+    Description: "Our VPC ID"
+    Value: !Ref EsVPC
+    Export:
+      Name: !Sub ${EnvironmentName}-VPC
+  VPNGateway:
+    Description: "Our VPC VPN Gateway ID"
+    Value: !Ref VpcVGW
+    Export:
+      Name: !Sub ${EnvironmentName}-VPNGateway
+  CustomerGateway: 
+    Description: "On Prem VPN Gateway appliance ID"
+    Value: !Ref OnPremCGW
+    Export:
+      Name: !Sub ${EnvironmentName}-Customer-Gateway
+  VPNConnection:
+    Description: "Our VPN Connection ID"
+    Value: !Ref VPNConnection
+    Export:
+      Name: !Sub ${EnvironmentName}-VPN-Connection
+   
