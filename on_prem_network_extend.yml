@@ -138,4 +138,9 @@ Outputs:
     Value: !Ref VPNConnection
     Export:
       Name: !Sub ${EnvironmentName}-VPN-Connection
+  PrivSubnets:
+    Description: "Private subnets ids"
+    Value: !Join [',', [!Ref PrivateSubnet1, !Ref PrivateSubnet2]]
+    Export:
+      Name: !Sub ${EnvironmentName}-PRIV-SUBS
    

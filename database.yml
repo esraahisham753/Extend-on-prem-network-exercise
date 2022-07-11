@@ -1,0 +1,60 @@
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: "The name that will be prefixed to all resources in the stack"
+  DBAllocatedStorage:
+    Type: String
+    Description: "Allocated Gigs for RDS instance"
+    Default: '20'
+  DBInstanceClass:
+    Type: String
+    Description: "Machine class for our RDS instance"
+    Default: 'db.t2.small'
+  DBIdentifier:
+    Type: String
+    Description: "unique id for our instance"
+  DBName:
+    Type: String
+    Description: "Name for our database"
+    Default: "mydb"
+  UserName:
+    Type: String
+    Description: "Our mastere database username"
+  Password:
+    Type: String
+    Description: "Our master database password"
+  
+
+Resources:
+  MyDBSubnetGroup1:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: 
+      DBSubnetGroupDescription: "Subnet group that will be used for multi AZs RDS instance"
+      DBSubnetGroupName: "esSubnetGroup"
+      SubnetIds: !Split [',', !ImportValue 'EsOnPremExtend-PRIV-SUBS']
+      Tags: 
+        - Key: "Name"
+          Value: !Sub ${EnvironmentName}-SUB-GROUP
+  MyDB:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: "Retain"
+    Properties: 
+      AllocatedStorage: !Ref DBAllocatedStorage
+      AllowMajorVersionUpgrade: true
+      AutoMinorVersionUpgrade: true
+      DBInstanceClass: !Ref DBInstanceClass
+      DBInstanceIdentifier: !Ref DBIdentifier
+      DBName: !Ref DBName
+      DBSubnetGroupName: !Ref MyDBSubnetGroup1
+      DeletionProtection: true
+      Engine: 'MySQL'
+      EngineVersion: "8.0.16"
+      MasterUsername: !Ref UserName
+      MasterUserPassword: !Ref Password
+      MultiAZ: true
+      Tags: 
+        - Key: "Name"
+          Value: "EsDBInstance"
+      VPCSecurityGroups: 
+        - "sg-0a84b187ffd2b84e6"
+
